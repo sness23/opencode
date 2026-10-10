@@ -1,5 +1,6 @@
 import type { AgentPart as MessageAgentPart, FilePart, Part, TextPart } from "@opencode-ai/sdk/v2"
 import type { AgentPart, FileAttachmentPart, ImageAttachmentPart, Prompt } from "@/context/prompt"
+import { createLegacyBlobReference } from "@/utils/draft-store"
 
 type Inline =
   | {
@@ -53,10 +54,11 @@ function textPartValue(parts: Part[]) {
  * Extract prompt content from message parts for restoring into the prompt input.
  * This is used by undo to restore the original user prompt.
  */
-export function extractPromptFromParts(parts: Part[], opts?: { directory?: string }): Prompt {
+export function extractPromptFromParts(parts: Part[], opts?: { directory?: string; attachmentName?: string }): Prompt {
   const textPart = textPartValue(parts)
   const text = textPart?.text ?? ""
   const directory = opts?.directory
+  const attachmentName = opts?.attachmentName ?? "attachment"
 
   const toRelative = (path: string) => {
     if (!directory) return path
@@ -104,9 +106,9 @@ export function extractPromptFromParts(parts: Part[], opts?: { directory?: strin
         images.push({
           type: "image",
           id: filePart.id,
-          filename: filePart.filename ?? "attachment",
+          filename: filePart.filename ?? attachmentName,
           mime: filePart.mime,
-          dataUrl: filePart.url,
+          blob: createLegacyBlobReference(filePart.url),
         })
       }
     }

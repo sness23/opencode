@@ -17,6 +17,11 @@
     height: 20px;
   }
 
+  &[data-size="medium"] {
+    width: 24px;
+    height: 24px;
+  }
+
   &[data-size="large"] {
     width: 24px;
     height: 24px;
@@ -26,4 +31,9 @@
     width: 100%;
     height: auto;
   }
+}
+
+:dir(rtl) [data-component="icon"][data-directional] [data-slot="icon-svg"],
+:dir(rtl) [data-slot="menu-v2-item-chevron"] {
+  transform: scaleX(-1);
 }

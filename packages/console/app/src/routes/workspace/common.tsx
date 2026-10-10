@@ -6,6 +6,7 @@ import { Billing } from "@opencode-ai/console-core/billing.js"
 import { and, Database, desc, eq, isNull } from "@opencode-ai/console-core/drizzle/index.js"
 import { WorkspaceTable } from "@opencode-ai/console-core/schema/workspace.sql.js"
 import { UserTable } from "@opencode-ai/console-core/schema/user.sql.js"
+import { checkCheckoutRateLimit } from "~/routes/zen/util/redis"
 
 export function formatDateForTable(date: Date) {
   const options: Intl.DateTimeFormatOptions = {
@@ -30,7 +31,7 @@ export function formatDateUTC(date: Date) {
     timeZoneName: "short",
     timeZone: "UTC",
   }
-  return date.toLocaleDateString("en-US", options)
+  return date.toLocaleDateString(undefined, options)
 }
 
 export function formatBalance(amount: number) {
@@ -52,6 +53,7 @@ export async function getLastSeenWorkspaceID() {
             eq(UserTable.accountID, actor.properties.accountID),
             isNull(UserTable.timeDeleted),
             isNull(WorkspaceTable.timeDeleted),
+            isNull(WorkspaceTable.migrated_at),
           ),
         )
         .orderBy(desc(UserTable.timeSeen))
@@ -77,7 +79,8 @@ export const createCheckoutUrl = action(
     return json(
       await withActor(
         () =>
-          Billing.generateCheckoutUrl({ amount, successUrl, cancelUrl })
+          checkCheckoutRateLimit(Actor.account())
+            .then(() => Billing.generateCheckoutUrl({ amount, successUrl, cancelUrl }))
             .then((data) => ({ error: undefined, data }))
             .catch((e) => ({
               error: e.message as string,
@@ -110,7 +113,13 @@ export const queryBillingInfo = query(async (workspaceID: string) => {
       timeMonthlyUsageUpdated: billing.timeMonthlyUsageUpdated,
       reloadError: billing.reloadError,
       timeReloadError: billing.timeReloadError,
+      subscription: billing.subscription,
       subscriptionID: billing.subscriptionID,
+      subscriptionPlan: billing.subscriptionPlan,
+      timeSubscriptionBooked: billing.timeSubscriptionBooked,
+      timeSubscriptionSelected: billing.timeSubscriptionSelected,
+      lite: billing.lite,
+      liteSubscriptionID: billing.liteSubscriptionID,
     }
   }, workspaceID)
 }, "billing.get")
